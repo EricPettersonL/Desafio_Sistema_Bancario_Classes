@@ -75,7 +75,7 @@ class ContaCorrente(Conta):
         else:
             self._saldo -= valor
             print(f"\nSaque de R${valor:.2f} realizado com sucesso.\n")
-            self.historico.adicionar_transacao(Saque(valor))
+
             return True
             
         return False
@@ -83,13 +83,13 @@ class ContaCorrente(Conta):
     def depositar(self, valor):
         self._saldo += valor
         print(f"\nDepósito de R${valor:.2f} realizado com sucesso.\n")
-        self.historico.adicionar_transacao(Deposito(valor))
+
         
     def __str__(self):
         return f"""\
-            Agência:\t{self.agencia}
+            Agência:\t\t{self.agencia}
             C/C:\t\t{self.numero}
-            Titular:\t{self.cliente.nome}
+            Titular:\t\t{self.cliente.nome}
             Saldo:\t\tR$ {self.saldo:.2f}
         """
 
@@ -100,12 +100,12 @@ class Historico:
 
     
     def adicionar_transacao(self, transacao):
-        if transacao not in self._transacoes:
-            self._transacoes.append({
-                'tipo': transacao.__class__.__name__,
-                'valor': transacao.valor,
-                'data': datetime.now().strftime('%d-%m-%Y %H:%M:%S')
-            })
+
+        self._transacoes.append({
+            'tipo': transacao.__class__.__name__,
+            'valor': transacao.valor,
+            'data': datetime.now().strftime('%d-%m-%Y %H:%M:%S')
+        })
         
     def __str__(self):
         extrato = ""
@@ -113,7 +113,7 @@ class Historico:
             extrato = "Não foram realizadas movimentações."
         else:
             for transacao in self._transacoes:
-                extrato += f"\n{transacao['tipo']}:\n\tR$ {transacao['valor']:.2f}"
+                extrato += f"\n{transacao['tipo']}: \t\t{transacao['data']}  \n\tR$ {transacao['valor']:.2f}"
         return extrato
 class Transacao(ABC):
     @property
@@ -184,67 +184,60 @@ def recuperar_conta_cliente(cliente):
     # FIXME: não permite cliente escolher a conta
     return cliente.contas[0]
 
-def depositar(clientes):
+def verificar_cliente(clientes, operacao):
     cpf = input("Informe o CPF do cliente: ")
     cliente = filtrar_cliente(cpf, clientes)
 
     if not cliente:
-        print("\n@@@ Cliente não encontrado! @@@")
+        print("\nCliente não encontrado!")
+        return None, None
+
+    conta = recuperar_conta_cliente(cliente)
+    if not conta:
+        return None, None
+
+    return cliente, conta
+
+
+def depositar(clientes):
+    cliente, conta = verificar_cliente(clientes, "Depósito")
+    if not cliente or not conta:
         return
 
     valor = float(input("Informe o valor do depósito: "))
     transacao = Deposito(valor)
 
-    conta = recuperar_conta_cliente(cliente)
-    if not conta:
-        return
-
     cliente.realizar_transacao(conta, transacao)
 
-def sacar(clientes):
-    cpf = input("Informe o CPF do cliente: ")
-    cliente = filtrar_cliente(cpf, clientes)
 
-    if not cliente:
-        print("\n@@@ Cliente não encontrado! @@@")
+def sacar(clientes):
+    cliente, conta = verificar_cliente(clientes, "Saque")
+    if not cliente or not conta:
         return
 
     valor = float(input("Informe o valor do saque: "))
     transacao = Saque(valor)
 
-    conta = recuperar_conta_cliente(cliente)
-    if not conta:
-        return
-
     cliente.realizar_transacao(conta, transacao)
 
+
 def exibir_extrato(clientes):
-    cpf = input("Informe o CPF do cliente: ")
-    cliente = filtrar_cliente(cpf, clientes)
-
-    if not cliente:
-        print("\n@@@ Cliente não encontrado! @@@")
-        return
-
-    conta = recuperar_conta_cliente(cliente)
-    if not conta:
+    cliente, conta = verificar_cliente(clientes, "Exibir Extrato")
+    if not cliente or not conta:
         return
 
     print("\n================ EXTRATO ================")
-
-
-
-
     print(conta.historico)
     print(f"\nSaldo:\n\tR$ {conta.saldo:.2f}")
     print("==========================================")
+
 
 def criar_cliente(clientes):
     cpf = input("Informe o CPF (somente número): ")
     cliente = filtrar_cliente(cpf, clientes)
 
     if cliente:
-        print("\n@@@ Já existe cliente com esse CPF! @@@")
+        print("\n Já existe cliente com esse CPF!")
         return
 
     nome = input("Informe o nome completo: ")
@@ -255,26 +248,29 @@ def criar_cliente(clientes):
 
     clientes.append(cliente)
 
-    print("\n=== Cliente criado com sucesso! ===")
+    print("\n Cliente criado com sucesso! ")
 
 def criar_conta(numero_conta, clientes, contas):
     cpf = input("Informe o CPF do cliente: ")
     cliente = filtrar_cliente(cpf, clientes)
 
     if not cliente:
-        print("\n@@@ Cliente não encontrado, fluxo de criação de conta encerrado! @@@")
+        print("\nCliente não encontrado, fluxo de criação de conta encerrado! ")
         return
 
     conta = ContaCorrente(numero=numero_conta, cliente=cliente)
     contas.append(conta)
     cliente.contas.append(conta)
 
-    print("\n=== Conta criada com sucesso! ===")
+    print("\n Conta criada com sucesso!")
 
 def listar_contas(contas):
-    for conta in contas:
-        print("=" * 100)
-        print(conta)
+    if contas:
+        for conta in contas:
+            print("=" * 100)
+            print(conta)
+    else:
+        print("\n Nenhuma conta cadastrada! ")
 
 def main():
     clientes = []
@@ -302,10 +298,8 @@ def main():
         elif opcao == "6":
             listar_contas(contas)
 
-        elif opcao == "7":
+        else:
             break
 
-        else:
-            print("\nOperação inválida, por favor selecione novamente a operação desejada.")
 
 main()
